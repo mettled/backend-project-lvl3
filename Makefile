@@ -5,7 +5,7 @@ build:
 	npm run build
 
 lint:
-	npm eslint .
+	npx eslint .
 
 test:
 	npm run test
