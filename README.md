@@ -51,5 +51,15 @@ page-loader http://loaded.site -o upload_directory
 
 All dependent modules will be download and install in the 'node_modules' folder
 
-asciinema with precessed Errors
+
+
+
+
+asciinema with normal work operation
+[![asciicast](https://asciinema.org/a/wo4T8WkRep7ceZwhglU3jSR5N.svg)](https://asciinema.org/a/wo4T8WkRep7ceZwhglU3jSR5N)
+
+Asciinema with Debug operation
+[![asciicast](https://asciinema.org/a/QDxiCzjbXgXtFYDeQBGyYtHJ8.svg)](https://asciinema.org/a/QDxiCzjbXgXtFYDeQBGyYtHJ8)
+
+Asciinema with processed Errors
 [![asciicast](https://asciinema.org/a/ZrXcH6JfwVM3aF7DVstMRbYod.svg)](https://asciinema.org/a/ZrXcH6JfwVM3aF7DVstMRbYod)
