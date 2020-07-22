@@ -4,7 +4,7 @@
 
 ## About app
 
-PAGE LOADER
+# PAGE LOADER
 
 Load page from net to upload directory
 
@@ -22,20 +22,14 @@ make start-frontend
 ```
 ## Run test
 
-```sh
 **Run default tests**
+```sh
 make test
 ```
 
-```sh
 **Run test + debug + nock debug**
-make test-nock-debug
-```
-
-## Run build
-
 ```sh
-make build
+make test-nock-debug
 ```
 
 ```sh
@@ -44,16 +38,18 @@ make build
 
 ## How to use
 
-```sh
 **Get help**
+```sh
 page-loader -h
 ```
 
-```sh
 **Get help**
+```sh
 page-loader http://loaded.site -o upload_directory
 ```
 
 
 All dependent modules will be download and install in the 'node_modules' folder
 
+asciinema with precessed Errors
+[![asciicast](https://asciinema.org/a/ZrXcH6JfwVM3aF7DVstMRbYod.svg)](https://asciinema.org/a/ZrXcH6JfwVM3aF7DVstMRbYod)

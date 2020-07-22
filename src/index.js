@@ -20,11 +20,13 @@ const settings = {
   baseUrl: null,
   main: null,
   src: null,
+  processedHtml: null,
 };
 
 const buildName = (pathname, replaceDot = false) => {
+  const checkedPathName = pathname.slice(-1) === '/' ? pathname.slice(0, -1) : pathname;
   const replacer = replaceDot ? /[^\w.]/g : /[^\w]/g;
-  return pathname.replace(replacer, '-');
+  return checkedPathName.replace(replacer, '-');
 };
 
 const createSettings = (baseUrl, outDirectory) => {
@@ -58,6 +60,7 @@ const processHtml = (htmlContent) => {
       }
     });
   });
+  settings.processedHtml = $.html();
   return $.html();
 };
 
@@ -78,17 +81,20 @@ const loadContent = (loadLink, uploadLink) => ({
 export default (baseLink, outDirectory = process.cwd()) => (
   new Promise((resolve) => resolve(createSettings(baseLink, outDirectory)))
     .then(() => {
-      logging(`Create directory ${outDirectory}`);
-      fs.mkdir(path.join(outDirectory, settings.src), { recursive: true });
-    })
-    .then(() => {
       logging(`load ${baseLink}`);
       return axios.get(baseLink);
     })
     .then(({ data }) => {
       logging(`Change link in ${settings.main}`);
-      const changedHtml = processHtml(data);
-      fs.writeFile(settings.main, changedHtml);
+      return processHtml(data);
+    })
+    .then(() => {
+      logging(`Create directory ${outDirectory}`);
+      return fs.mkdir(path.join(outDirectory, settings.src), { recursive: true });
+    })
+    .then(() => {
+      logging(`Write changed file to ${outDirectory}`);
+      return fs.writeFile(settings.main, settings.processedHtml);
     })
     .then(() => (
       new Listr(
