@@ -50,9 +50,9 @@ const processHtml = (htmlContent, { baseUrl, src }) => {
         const { pathname } = new URL(link, baseUrl.origin);
         const changedName = buildName(pathname.slice(1), true);
 
-        const newLink = path.join(src, changedName);
-        convertedLinks.set(link, newLink);
-        $(elem).attr(attr, newLink);
+        const newPath = path.join(src, changedName);
+        convertedLinks.set(link, newPath);
+        $(elem).attr(attr, newPath);
       }
     });
   });
@@ -101,10 +101,10 @@ export default (baseLink, outDirectory) => {
     .then(() => (
       new Listr(
         Array.from(settings.convertedLinks.entries())
-          .map(([link, fileLink]) => {
+          .map(([link, newPath]) => {
             const loadLink = new URL(link, settings.baseUrl.origin);
-            const newFileLink = path.join(outDirectory, fileLink);
-            return loadContent(loadLink.href, newFileLink);
+            const newFilePath = path.join(outDirectory, newPath);
+            return loadContent(loadLink.href, newFilePath);
           }),
         { concurrent: true },
       ).run()
