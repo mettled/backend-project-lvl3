@@ -6,7 +6,7 @@ import pageLoader from '..';
 program
   .description('Page loader')
   .version('0.0.1')
-  .option('-o, --out-dir [type]', 'Output directory')
+  .option('-o, --out-dir [type]', 'Output directory', process.cwd())
   .arguments('<url>')
   .action((url, cmdObj) => {
     pageLoader(url, cmdObj.outDir)

@@ -6,22 +6,7 @@ import 'axios-debug-log';
 import debug from 'debug';
 import Listr from 'listr';
 
-const logging = debug('page-loader:');
-
-const tags = [
-  ['link', 'href'],
-  ['img', 'src'],
-  ['script', 'src'],
-];
-
-const convertedLinks = new Map();
-
-const settings = {
-  baseUrl: null,
-  main: null,
-  src: null,
-  processedHtml: null,
-};
+const log = debug('page-loader:');
 
 const buildName = (pathname, replaceDot = false) => {
   const checkedPathName = pathname.slice(-1) === '/' ? pathname.slice(0, -1) : pathname;
@@ -29,39 +14,52 @@ const buildName = (pathname, replaceDot = false) => {
   return checkedPathName.replace(replacer, '-');
 };
 
-const createSettings = (baseUrl, outDirectory) => {
-  settings.baseUrl = new URL(baseUrl);
-  const { hostname, pathname } = settings.baseUrl;
-  const changedPath = buildName(`${hostname}${pathname}`);
-
-  settings.main = path.join(outDirectory, `${changedPath}.html`);
-  settings.src = path.normalize(`${changedPath}_files`);
+const createSettings = (baseLink, outDirectory) => {
+  try {
+    const baseUrl = new URL(baseLink);
+    const { hostname, pathname } = baseUrl;
+    const changedPath = buildName(`${hostname}${pathname}`);
+    return {
+      baseUrl,
+      main: path.join(outDirectory, `${changedPath}.html`),
+      src: path.normalize(`${changedPath}_files`),
+    };
+  } catch (e) {
+    return e;
+  }
 };
 
-const isLocalDomain = (link) => {
-  const { origin, hostname: baseHostname } = settings.baseUrl;
+const isLocalDomain = (link, baseUrl) => {
+  const { origin, hostname: baseHostname } = baseUrl;
   const { hostname } = new URL(link, origin);
 
   return link && path.parse(link).ext && baseHostname === hostname;
 };
 
-const processHtml = (htmlContent) => {
+const processHtml = (htmlContent, { baseUrl, src }) => {
+  const convertedLinks = new Map();
   const $ = cherio.load(htmlContent);
-  tags.forEach(([tag, attr]) => {
+  [
+    ['link', 'href'],
+    ['img', 'src'],
+    ['script', 'src'],
+  ].forEach(([tag, attr]) => {
     $(tag).each((i, elem) => {
       const link = $(elem).attr(attr);
-      if (isLocalDomain(link)) {
-        const { pathname } = new URL(link, settings.baseUrl.origin);
+      if (isLocalDomain(link, baseUrl)) {
+        const { pathname } = new URL(link, baseUrl.origin);
         const changedName = buildName(pathname.slice(1), true);
 
-        const newLink = path.join(settings.src, changedName);
+        const newLink = path.join(src, changedName);
         convertedLinks.set(link, newLink);
         $(elem).attr(attr, newLink);
       }
     });
   });
-  settings.processedHtml = $.html();
-  return $.html();
+  return {
+    convertedLinks,
+    processedHtml: $.html(),
+  };
 };
 
 const loadContent = (loadLink, uploadLink) => ({
@@ -72,33 +70,37 @@ const loadContent = (loadLink, uploadLink) => ({
     responseType: 'stream',
   })
     .then((response) => {
-      logging(`Upload ${loadLink} 
+      log(`Upload ${loadLink} 
       to ${uploadLink}`);
       response.data.pipe(createWriteStream(uploadLink));
     }),
 });
 
-export default (baseLink, outDirectory = process.cwd()) => (
-  new Promise((resolve) => resolve(createSettings(baseLink, outDirectory)))
-    .then(() => {
-      logging(`load ${baseLink}`);
-      return axios.get(baseLink);
-    })
+export default (baseLink, outDirectory) => {
+  const settings = createSettings(baseLink, outDirectory);
+
+  log(`load ${baseLink}`);
+  return axios.get(baseLink)
     .then(({ data }) => {
-      logging(`Change link in ${settings.main}`);
-      return processHtml(data);
+      log(`Change link in ${settings.main}`);
+      const { baseUrl, src } = settings;
+      const {
+        convertedLinks,
+        processedHtml,
+      } = processHtml(data, { baseUrl, src });
+
+      settings.convertedLinks = convertedLinks;
+      settings.processedHtml = processedHtml;
+      log(`Create directory ${outDirectory}`);
+      return fs.mkdir(path.join(outDirectory, src), { recursive: true });
     })
     .then(() => {
-      logging(`Create directory ${outDirectory}`);
-      return fs.mkdir(path.join(outDirectory, settings.src), { recursive: true });
-    })
-    .then(() => {
-      logging(`Write changed file to ${outDirectory}`);
+      log(`Write changed file to ${outDirectory}`);
       return fs.writeFile(settings.main, settings.processedHtml);
     })
     .then(() => (
       new Listr(
-        Array.from(convertedLinks.entries())
+        Array.from(settings.convertedLinks.entries())
           .map(([link, fileLink]) => {
             const loadLink = new URL(link, settings.baseUrl.origin);
             const newFileLink = path.join(outDirectory, fileLink);
@@ -106,5 +108,5 @@ export default (baseLink, outDirectory = process.cwd()) => (
           }),
         { concurrent: true },
       ).run()
-    ))
-);
+    ));
+};
