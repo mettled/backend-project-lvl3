@@ -69,12 +69,14 @@ describe('tested pageLoader app', () => {
   });
 
   test('Wrong load link', async () => {
-    await expect(pageLoader('/undef')).rejects.toThrow();
+    await expect(() => {
+      pageLoader('/undef', testDirResult);
+    }).toThrowError();
   });
 
   test('No response from URL', async () => {
     const { href } = new URL('no_page', testedUrl);
-    await expect(pageLoader(href)).rejects.toMatchObject({
+    await expect(pageLoader(href, testDirResult)).rejects.toMatchObject({
       code: 'ERROR',
     });
   });

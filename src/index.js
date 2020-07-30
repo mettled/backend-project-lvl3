@@ -8,6 +8,12 @@ import Listr from 'listr';
 
 const log = debug('page-loader:');
 
+const tags = [
+  ['link', 'href'],
+  ['img', 'src'],
+  ['script', 'src'],
+];
+
 const buildName = (pathname, replaceDot = false) => {
   const checkedPathName = pathname.slice(-1) === '/' ? pathname.slice(0, -1) : pathname;
   const replacer = replaceDot ? /[^\w.]/g : /[^\w]/g;
@@ -15,18 +21,14 @@ const buildName = (pathname, replaceDot = false) => {
 };
 
 const createSettings = (baseLink, outDirectory) => {
-  try {
-    const baseUrl = new URL(baseLink);
-    const { hostname, pathname } = baseUrl;
-    const changedPath = buildName(`${hostname}${pathname}`);
-    return {
-      baseUrl,
-      main: path.join(outDirectory, `${changedPath}.html`),
-      src: path.normalize(`${changedPath}_files`),
-    };
-  } catch (e) {
-    return e;
-  }
+  const baseUrl = new URL(baseLink);
+  const { hostname, pathname } = baseUrl;
+  const changedPath = buildName(`${hostname}${pathname}`);
+  return {
+    baseUrl,
+    main: path.join(outDirectory, `${changedPath}.html`),
+    src: path.normalize(`${changedPath}_files`),
+  };
 };
 
 const isLocalDomain = (link, baseUrl) => {
@@ -39,11 +41,7 @@ const isLocalDomain = (link, baseUrl) => {
 const processHtml = (htmlContent, { baseUrl, src }) => {
   const convertedLinks = new Map();
   const $ = cherio.load(htmlContent);
-  [
-    ['link', 'href'],
-    ['img', 'src'],
-    ['script', 'src'],
-  ].forEach(([tag, attr]) => {
+  tags.forEach(([tag, attr]) => {
     $(tag).each((i, elem) => {
       const link = $(elem).attr(attr);
       if (isLocalDomain(link, baseUrl)) {
@@ -78,29 +76,25 @@ const loadContent = (loadLink, uploadLink) => ({
 
 export default (baseLink, outDirectory) => {
   const settings = createSettings(baseLink, outDirectory);
+  let processedData = null;
 
   log(`load ${baseLink}`);
   return axios.get(baseLink)
     .then(({ data }) => {
       log(`Change link in ${settings.main}`);
       const { baseUrl, src } = settings;
-      const {
-        convertedLinks,
-        processedHtml,
-      } = processHtml(data, { baseUrl, src });
+      processedData = processHtml(data, { baseUrl, src });
 
-      settings.convertedLinks = convertedLinks;
-      settings.processedHtml = processedHtml;
       log(`Create directory ${outDirectory}`);
       return fs.mkdir(path.join(outDirectory, src), { recursive: true });
     })
     .then(() => {
       log(`Write changed file to ${outDirectory}`);
-      return fs.writeFile(settings.main, settings.processedHtml);
+      return fs.writeFile(settings.main, processedData.processedHtml);
     })
     .then(() => (
       new Listr(
-        Array.from(settings.convertedLinks.entries())
+        Array.from(processedData.convertedLinks.entries())
           .map(([link, newPath]) => {
             const loadLink = new URL(link, settings.baseUrl.origin);
             const newFilePath = path.join(outDirectory, newPath);
